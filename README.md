@@ -1,4 +1,4 @@
-# Cuda-Custom-Kernels
+# CUDA-Custom-Kernels
 
 My CUDA playground to learn by writing some custom kernels, time them, and plot the results on RTX 3060.
 
@@ -58,3 +58,9 @@ Tiled,4096,4096,4096,123.207,1115.51
 ```
 
 Tiled > Naive because of shared memory and coalesced loads.
+
+## Profiling
+Run this:
+```bash
+sudo /usr/local/cuda/bin/ncu --set full --section LaunchStats --section Occupancy ./bin/kernels
+```
