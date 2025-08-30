@@ -1,65 +1,60 @@
-# cuda-kernels
+# Cuda-Custom-Kernels
 
-Small repo to learn CUDA basics by writing and benchmarking a few kernels.
+My CUDA playground to learn by writing some custom kernels, time them, and plot the results on RTX 3060.
 
-## What’s here
-- `vec_add.cu` – 1D vector add (one thread per element)
-- `matmul.cu` – matrix multiply
+## Layout
+- `src/vec_add.cu` – 1D vector add (one thread per element)
+- `src/matmul.cu` – matrix multiply
   - `matmul_naive` (global memory only)
-  - `matmul_tiled` (shared-memory tiling)
-- `main.cu` – tiny harness to time kernels with CUDA events and dump `bench/results.csv`
-- `bench/plot.py` – quick matplotlib plot of tile size vs GFLOPs (optional)
+  - `matmul_tiled` (shared memory tiling)
+- `src/main.cu` – simple harness with CUDA events; dumps `scripts/results.csv`
+- `scripts/plot_perf.py` – reads CSV and saves `scripts/perf.png`
 
-## Requirements
-- NVIDIA GPU (tested on RTX 3060)
-- CUDA Toolkit 12.x
-- Driver working: `nvidia-smi`
-- Compiler: `nvcc` (C++17 is fine)
+## Build (nvcc)
+Tested on RTX 3060, CUDA 12.x:
 
-## Build
-### Quick (nvcc)
 ```bash
-nvcc -O3 -arch=sm_86 -o kernels main.cu matmul.cu vec_add.cu
+nvcc -O3 -arch=sm_86 -o bin/kernels   src/main.cu src/matmul.cu src/vec_add.cu
 ```
 
-### CMake (optional)
-```bash
-mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . -j
-```
+(Adjust `-arch` to your GPU if needed.)
 
 ## Run
 ```bash
-./kernels
-```
-This runs warmups, times each kernel, prints best time, and appends to `bench/results.csv`:
-```
-algo,M,N,K,ms,gflops
-naive,512,512,512,XX.XXX,YY.YY
-tiled,512,512,512,AA.AAA,BB.BB
+./bin/kernels
 ```
 
-Change matrix sizes in `main.cu` (defaults: 512×512×512).
+This warms up, times each kernel, prints the best time, and appends to `scripts/results.csv`.
 
-## Plot (optional)
+Set matrix sizes in `src/main.cu`.
+
+## Plot
+Install once:
 ```bash
-python3 bench/plot.py
+pip install pandas matplotlib
 ```
-Produces `tile_vs_gflops.png`.
 
-## Notes
-- **Global vs Shared memory**: global is large but high latency; shared is on‑chip and fast. Tiling loads blocks of A and B into shared memory, so each value is reused by many threads—fewer global reads → big speedup.
-- **Coalescing**: arrange loads so threads in a warp read neighboring addresses. The tiled kernel does this for both A and B tiles.
-- **Timing**: we time kernel execution with CUDA events (no H2D/D2H).
-
-## Sanity checks
-- Compare against a small CPU matmul once (e.g., 128³) to verify correctness.
-- Quick profiler:
+Then:
 ```bash
-ncu --section LaunchStats --section Occupancy ./kernels
+python3 scripts/plot_perf.py
 ```
-Look at *Achieved Occupancy* and DRAM/shared throughput.
+Output goes to `scripts/perf.png`.
 
----
-Keep it simple. Get it correct. Then make it fast.
+## Example results (from my 3060)
+`scripts/results.csv` (best time over a few runs):
+
+<img src="scripts/perf.png" alt="GFLOPs vs size (RTX 3060)" width="650">
+
+```
+name,M,N,K,time,GFLOPS
+Naive,1024,256,512,0.348192,770.941
+Tiled,1024,256,512,0.270336,992.97
+Naive,1024,1024,1024,2.72998,786.629
+Tiled,1024,1024,1024,2.0695,1037.68
+Naive,4096,1024,2048,20.2281,849.307
+Tiled,4096,1024,2048,15.4309,1113.34
+Naive,4096,4096,4096,163.842,838.851
+Tiled,4096,4096,4096,123.207,1115.51
+```
+
+Tiled > Naive because of shared memory and coalesced loads.
