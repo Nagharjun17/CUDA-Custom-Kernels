@@ -1,4 +1,4 @@
-# cuda-kernels (CUDA Week 2)
+# cuda-kernels
 
 Small repo to learn CUDA basics by writing and benchmarking a few kernels.
 
